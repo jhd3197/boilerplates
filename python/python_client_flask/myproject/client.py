@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from .mixins.config import ConfigMixin
 from .mixins.tools import ToolsMixin
 from .mixins.database import DatabaseMixin
-from .mixins.api import APIMixin
+from .mixins.api_client import APIMixin
 from .mixins.logger import LoggerMixin
 from .mixins.cache import CacheMixin
 from .types import Result
@@ -73,13 +73,10 @@ class Client(
     ) -> None:
         """Initialize the Client instance.
 
-        This initialization properly calls super().__init__() to ensure
-        all mixins are initialized in the correct order according to MRO.
-
         Args:
             name: Name of the application
             version: Version of the application (uses DEFAULT_VERSION if None)
-            **kwargs: Additional keyword arguments passed to parent classes
+            **kwargs: Additional keyword arguments
                 - config: Configuration dictionary
                 - cache_folder: Cache folder path
                 - log_level: Logging level
@@ -87,25 +84,57 @@ class Client(
                 - db_url: Database URL
                 - etc.
         """
+        # Initialize object
+        super().__init__()
+
+        # --- ConfigMixin Initialization ---
+        custom_config = kwargs.get('config', {})
+        # _load_config is available from ConfigMixin
+        self.config = self._load_config(custom_config)
+
+        # --- CacheMixin Initialization ---
+        # Get cache settings from config or environment
+        self.cache_folder = kwargs.get('cache_folder') or os.getenv('CACHE_FOLDER', 'cache')
+        self.cache_ttl = kwargs.get('cache_ttl', 3600)  # 1 hour default
+        
+        # Initialize in-memory cache
+        self.cache_storage: dict[str, dict] = {}
+        
+        # Create cache folder if it doesn't exist
+        pathlib.Path(self.cache_folder).mkdir(parents=True, exist_ok=True)
+
+        # --- LoggerMixin Initialization ---
+        self.log_level = kwargs.get('log_level') or os.getenv('LOG_LEVEL', 'INFO')
+        self.log_file = kwargs.get('log_file') or os.getenv('LOG_FILE')
+        self.log_enabled = kwargs.get('log_enabled', True)
+
+        if hasattr(self, 'config'):
+            self.log_level = self.config.log_level
+
+        # --- APIMixin Initialization ---
+        self.api_base_url = kwargs.get('api_base_url') or os.getenv('API_BASE_URL', '')
+        self.api_key = kwargs.get('api_key') or os.getenv('API_KEY')
+        self.api_timeout = kwargs.get('api_timeout', 30)
+
+        if hasattr(self, 'config'):
+            if self.config.api_key:
+                self.api_key = self.config.api_key
+            self.api_timeout = self.config.timeout
+
+        # --- DatabaseMixin Initialization ---
+        self.db_url = kwargs.get('db_url') or os.getenv('DATABASE_URL')
+        self.db_connection = None
+
+        if hasattr(self, 'config') and self.config.database_url:
+            self.db_url = self.config.database_url
+
+        # --- Client Initialization ---
         # Set version with fallback
         version = version or os.getenv('APP_VERSION', self.DEFAULT_VERSION)
-
-        # Get cache folder from kwargs or environment
-        cache_folder = kwargs.get('cache_folder') or os.getenv(
-            'CACHE_FOLDER',
-            self.DEFAULT_CACHE_FOLDER
-        )
-        kwargs['cache_folder'] = cache_folder
-
-        # Initialize parent classes through MRO
-        super().__init__(**kwargs)
-
+        
         # Set Client-specific attributes
         self.name = name
         self.version = version
-
-        # Create cache folder if it doesn't exist
-        pathlib.Path(cache_folder).mkdir(parents=True, exist_ok=True)
 
         # Run garbage collection
         gc.collect()
@@ -114,7 +143,7 @@ class Client(
         if hasattr(self, 'config') and self.config.debug:
             self.debug(
                 f"{self.name} v{self.version} initialized",
-                {"cache_folder": cache_folder}
+                {"cache_folder": self.cache_folder}
             )
 
     def initialize(self) -> Result:

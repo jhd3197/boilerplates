@@ -11,7 +11,6 @@ from typing import Any, Optional
 
 from ..types import Result
 
-
 class CacheMixin:
     """Mixin class for caching operations.
 
@@ -23,25 +22,6 @@ class CacheMixin:
         cache_storage: In-memory cache storage
         cache_ttl: Default time-to-live for cache entries (seconds)
     """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the cache mixin.
-
-        Args:
-            *args: Positional arguments passed to super()
-            **kwargs: Keyword arguments passed to super()
-        """
-        super().__init__(*args, **kwargs)
-
-        # Get cache settings from config or environment
-        self.cache_folder = kwargs.get('cache_folder') or os.getenv('CACHE_FOLDER', 'cache')
-        self.cache_ttl = kwargs.get('cache_ttl', 3600)  # 1 hour default
-
-        # Initialize in-memory cache
-        self.cache_storage: dict[str, dict] = {}
-
-        # Create cache folder if it doesn't exist
-        pathlib.Path(self.cache_folder).mkdir(parents=True, exist_ok=True)
 
     def _get_cache_file_path(self, key: str) -> str:
         """Get the file path for a cache key.

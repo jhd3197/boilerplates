@@ -18,15 +18,6 @@ class ToolsMixin:
     inheritance pattern with super() to work properly in the MRO chain.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the tools mixin.
-
-        Args:
-            *args: Positional arguments passed to super()
-            **kwargs: Keyword arguments passed to super()
-        """
-        super().__init__(*args, **kwargs)
-
     def calculate(self, operation: str, *values: float) -> Result:
         """Perform a calculation on the provided values.
 

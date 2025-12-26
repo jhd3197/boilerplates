@@ -20,22 +20,6 @@ class DatabaseMixin:
         db_url: Database connection URL
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the database mixin.
-
-        Args:
-            *args: Positional arguments passed to super()
-            **kwargs: Keyword arguments passed to super()
-        """
-        super().__init__(*args, **kwargs)
-
-        # Get database URL from config or environment
-        self.db_url = kwargs.get('db_url') or os.getenv('DATABASE_URL')
-        self.db_connection = None
-
-        if hasattr(self, 'config') and self.config.database_url:
-            self.db_url = self.config.database_url
-
     def connect_db(self) -> Result:
         """Connect to the database.
 

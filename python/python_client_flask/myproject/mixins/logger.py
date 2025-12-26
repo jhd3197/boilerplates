@@ -30,23 +30,6 @@ class LoggerMixin:
         "CRITICAL": 50,
     }
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the logger mixin.
-
-        Args:
-            *args: Positional arguments passed to super()
-            **kwargs: Keyword arguments passed to super()
-        """
-        super().__init__(*args, **kwargs)
-
-        # Get log settings from config or environment
-        self.log_level = kwargs.get('log_level') or os.getenv('LOG_LEVEL', 'INFO')
-        self.log_file = kwargs.get('log_file') or os.getenv('LOG_FILE')
-        self.log_enabled = kwargs.get('log_enabled', True)
-
-        if hasattr(self, 'config'):
-            self.log_level = self.config.log_level
-
     def _should_log(self, level: str) -> bool:
         """Check if a message at the given level should be logged.
 

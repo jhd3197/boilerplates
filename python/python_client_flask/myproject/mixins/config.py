@@ -8,7 +8,6 @@ from typing import Any, Dict, Optional
 
 from ..types import ConfigDict
 
-
 class ConfigMixin:
     """Mixin class for configuration management.
 
@@ -19,23 +18,6 @@ class ConfigMixin:
     Attributes:
         config: ConfigDict instance containing all configuration
     """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the configuration mixin.
-
-        Args:
-            *args: Positional arguments passed to super()
-            **kwargs: Keyword arguments, may include 'config' or individual config params
-        """
-        # Extract config from kwargs before passing to super()
-        custom_config = kwargs.pop('config', {})
-
-        # Call super().__init__() without arguments to avoid passing to object.__init__()
-        # ConfigMixin is typically the last mixin before object in the MRO
-        super().__init__()
-
-        # Load configuration
-        self.config = self._load_config(custom_config)
 
     def _load_config(self, custom_config: Optional[Dict[str, Any]] = None) -> ConfigDict:
         """Load configuration from environment variables and custom settings.

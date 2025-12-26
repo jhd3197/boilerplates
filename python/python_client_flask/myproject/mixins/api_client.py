@@ -8,7 +8,6 @@ from typing import Any, Dict, Optional
 
 from ..types import Result
 
-
 class APIMixin:
     """Mixin class for API operations.
 
@@ -20,25 +19,6 @@ class APIMixin:
         api_key: API authentication key
         api_timeout: Request timeout in seconds
     """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the API mixin.
-
-        Args:
-            *args: Positional arguments passed to super()
-            **kwargs: Keyword arguments passed to super()
-        """
-        super().__init__(*args, **kwargs)
-
-        # Get API settings from config or environment
-        self.api_base_url = kwargs.get('api_base_url') or os.getenv('API_BASE_URL', '')
-        self.api_key = kwargs.get('api_key') or os.getenv('API_KEY')
-        self.api_timeout = kwargs.get('api_timeout', 30)
-
-        if hasattr(self, 'config'):
-            if self.config.api_key:
-                self.api_key = self.config.api_key
-            self.api_timeout = self.config.timeout
 
     def _get_headers(self, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
         """Build request headers.
