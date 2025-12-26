@@ -1,0 +1,7 @@
+# Boilerplate Manager Requirements
+
+# Interactive CLI prompts
+InquirerPy>=0.3.4
+
+# For development:
+# pip install -e .
