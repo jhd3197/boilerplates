@@ -1,6 +1,6 @@
-# MyProject - Python Boilerplate
+# MyProject - Python
 
-A robust, production-ready Python boilerplate demonstrating best practices for cooperative multiple inheritance, modular architecture, and clean separation of concerns through mixins.
+MyProject demonstrates best practices for cooperative multiple inheritance, modular architecture, and clean separation of concerns through mixins.
 
 ## Features
 

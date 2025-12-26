@@ -168,6 +168,46 @@ def get_template_variables(template_config, project_name, package_name=None, aut
     return variables
 
 
+def expand_brace_pattern(pattern):
+    """Expands brace patterns like '**/*.{py,md}' into ['**/*.py', '**/*.md']."""
+    import re
+
+    # Find brace expansion pattern {a,b,c}
+    brace_match = re.search(r'\{([^}]+)\}', pattern)
+
+    if not brace_match:
+        # No braces, return as-is
+        return [pattern]
+
+    # Extract the options inside braces
+    options = brace_match.group(1).split(',')
+
+    # Get the part before and after the braces
+    before = pattern[:brace_match.start()]
+    after = pattern[brace_match.end():]
+
+    # Generate all combinations
+    expanded = [f"{before}{opt.strip()}{after}" for opt in options]
+
+    # Recursively expand if there are more braces
+    final_expanded = []
+    for exp in expanded:
+        final_expanded.extend(expand_brace_pattern(exp))
+
+    return final_expanded
+
+
+def matches_any_pattern(file_path, patterns):
+    """Check if file_path matches any of the given glob patterns."""
+    file_str = str(file_path)
+    file_str_posix = file_str.replace('\\', '/')
+
+    for pattern in patterns:
+        if fnmatch.fnmatch(file_str, pattern) or fnmatch.fnmatch(file_str_posix, pattern):
+            return True
+    return False
+
+
 def apply_template_config(target_dir, template_config, variables):
     """Applies template configuration (renames and replacements)."""
     if not template_config:
@@ -189,6 +229,10 @@ def apply_template_config(target_dir, template_config, variables):
     if 'replace' in template_config:
         for replace_rule in template_config['replace']:
             glob_pattern = replace_rule.get('glob', '**/*')
+
+            # Expand brace patterns like **/*.{py,md} into multiple patterns
+            expanded_patterns = expand_brace_pattern(glob_pattern)
+
             replacements = {}
 
             # Build replacement dictionary
@@ -210,9 +254,8 @@ def apply_template_config(target_dir, template_config, variables):
                     file_path = Path(root) / file
                     relative_path = file_path.relative_to(target_dir)
 
-                    # Check if file matches glob pattern
-                    if fnmatch.fnmatch(str(relative_path), glob_pattern) or \
-                       fnmatch.fnmatch(str(relative_path).replace('\\', '/'), glob_pattern):
+                    # Check if file matches any of the expanded patterns
+                    if matches_any_pattern(relative_path, expanded_patterns):
                         if replace_in_file(file_path, replacements):
                             files_updated += 1
 

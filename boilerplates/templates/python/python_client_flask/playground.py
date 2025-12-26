@@ -1,6 +1,6 @@
-"""Playground for testing MyProject boilerplate.
+"""Playground for testing MyProject.
 
-This module demonstrates the usage of the MyProject boilerplate,
+This module demonstrates the usage of the MyProject,
 showcasing the Client class, mixins, and the new Flask API.
 """
 
