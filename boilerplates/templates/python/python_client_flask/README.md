@@ -18,6 +18,9 @@ MyProject demonstrates best practices for cooperative multiple inheritance, modu
 
 ```
 python/
+├── agents.md               # AI agent permissions and safety guidelines
+├── GEMINI.md               # Project intent and behavioral expectations
+├── claude.md               # Claude-specific style and workflow
 ├── myproject/
 │   ├── __init__.py          # Package exports and initialization
 │   ├── client.py            # Main Client class combining all mixins
