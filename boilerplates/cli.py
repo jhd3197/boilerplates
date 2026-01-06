@@ -372,9 +372,31 @@ def get_template_info(template_path):
     }
 
 
+def print_banner():
+    """Prints the CLI banner with version."""
+    try:
+        from . import __version__ as version
+    except ImportError:
+        version = "0.1.0"
+    
+    banner = r"""
+ ____                      ___                               ___                 __                      
+/\  _`\             __    /\_ \                             /\_ \               /\ \__                   
+\ \ \L\ \    ___   /\_\   \//\ \       __    _ __   _____   \//\ \       __     \ \ ,_\     __     ____  
+ \ \  _ <'  / __`\ \/\ \    \ \ \    /'__`\ /\`'__\/\ '__`\   \ \ \    /'__`\    \ \ \/   /'__`\  /',__\ 
+  \ \ \L\ \/\ \L\ \ \ \ \    \_\ \_ /\  __/ \ \ \/ \ \ \L\ \   \_\ \_ /\ \L\.\_   \ \ \_ /\  __/ /\__, `\
+   \ \____/\ \____/  \ \_\   /\____\\ \____\ \ \_\  \ \ ,__/   /\____\\ \__/.\_\   \ \__\\ \____\\/\____/
+    \/___/  \/___/    \/_/   \/____/ \/____/  \/_/   \ \ \/    \/____/ \/__/\/_/    \/__/ \/____/ \/___/ 
+                                                      \ \_\                                              
+                                                       \/_/                                              
+"""
+    # Cyan color for the banner, Reset for version
+    print(f"\033[96m{banner}\033[0m")
+    print(f"   \033[1m⚡ CLI v{version}\033[0m\n")
+
+
 def interactive_mode():
     """Runs the CLI in interactive mode with InquirerPy."""
-    print("\n🚀 Welcome to the Boilerplate Manager!\n")
 
     # Get all templates organized by category
     templates_dir = get_templates_dir()
@@ -534,13 +556,16 @@ Examples:
 
     # Handle commands
     if args.command == 'init':
+        print_banner()
         interactive_mode()
 
     elif args.command == 'list':
+        print_banner()
         templates = list_templates()
         display_templates(templates)
 
     elif args.command == 'create':
+        print_banner()
         create_project(
             args.category,
             args.template,
@@ -551,6 +576,7 @@ Examples:
 
     else:
         # No command provided - run interactive mode
+        print_banner()
         interactive_mode()
 
 

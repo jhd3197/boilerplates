@@ -9,22 +9,17 @@ from pathlib import Path
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding='utf-8')
 
-# Read version from __init__.py
-version = {}
-with open(this_directory / "boilerplates" / "__init__.py", encoding='utf-8') as f:
-    for line in f:
-        if line.startswith('__version__'):
-            exec(line, version)
-            break
+# Read version from VERSION file
+version = (this_directory / "VERSION").read_text(encoding='utf-8').strip()
 
 setup(
     name="boilerplate-manager",
-    version=version.get('__version__', '0.1.0'),
+    version=version,
     author="Juan",
     description="A CLI tool for managing and creating projects from boilerplate templates",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/boilerplates",
+    url="https://github.com/jhd3197/boilerplates",
     packages=find_packages(),
     include_package_data=True,
     package_data={

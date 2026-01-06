@@ -15,6 +15,7 @@
 * **Smart Context:** Automatically handles slug conversion (e.g., "My App" → `my_app`).
 * **Auto-Documentation:** Generates a custom `how_it_works.md` for every new project.
 * **Highly Configurable:** Define custom prompts and file replacements via `template.json`.
+* **Agents Ready:** Ready to be used with LLM Agents.  
 
 ---
 
@@ -34,7 +35,7 @@ Clone the repository and install the CLI globally using pip. We recommend instal
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/boilerplates.git
+git clone https://github.com/jhd3197/boilerplates.git
 cd boilerplates
 ```
 

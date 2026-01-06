@@ -5,6 +5,9 @@ recursive-include boilerplates/templates *
 include README.md
 include LICENSE
 
+# Include version file
+include VERSION
+
 # Exclude unnecessary files
 global-exclude __pycache__
 global-exclude *.py[co]
