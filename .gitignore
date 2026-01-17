@@ -208,3 +208,4 @@ __marimo__/
 /.claude
 output/
 *.exe
+/webapp/node_modules
