@@ -1,6 +1,4 @@
-"""
-CLI for the Boilerplate Manager.
-"""
+"CLI for the Boilerplate Manager."
 
 import os
 import sys
@@ -12,6 +10,44 @@ import fnmatch
 from pathlib import Path
 from InquirerPy import prompt
 from InquirerPy.validator import EmptyInputValidator
+import requests
+import subprocess
+from . import config as cfg
+
+def set_github_token():
+    """Prompts the user for a GitHub token and saves it."""
+    token = get_valid_input("Enter your GitHub Personal Access Token: ")
+    config = cfg.load_config()
+    config['github_token'] = token
+    cfg.save_config(config)
+    print("GitHub token saved successfully.")
+
+
+def add_private_repo(url, alias):
+    """Adds a private repository to the configuration."""
+    config = cfg.load_config()
+    if not alias:
+        alias = re.sub(r'\.git$', '', url.split('/')[-1])
+
+    repo_entry = {"url": url, "alias": alias}
+    config["private_repos"].append(repo_entry)
+    cfg.save_config(config)
+    print(f"Private repository '{alias}' added successfully.")
+
+
+def remove_private_repo(alias):
+    """Removes a private repository from the configuration."""
+    config = cfg.load_config()
+    initial_count = len(config["private_repos"])
+    config["private_repos"] = [
+        repo for repo in config["private_repos"] if repo["alias"] != alias
+    ]
+
+    if len(config["private_repos"]) < initial_count:
+        cfg.save_config(config)
+        print(f"Private repository '{alias}' removed successfully.")
+    else:
+        print(f"Error: Repository with alias '{alias}' not found.")
 
 
 def get_templates_dir():
@@ -21,19 +57,52 @@ def get_templates_dir():
 
 def list_templates():
     """Lists all available templates organized by category."""
-    templates_dir = get_templates_dir()
-
-    if not templates_dir.exists():
-        print(f"Error: Templates directory not found at {templates_dir}")
-        return {}
-
+    config = cfg.load_config()
     templates = {}
-    for category_dir in templates_dir.iterdir():
-        if category_dir.is_dir():
-            category = category_dir.name
-            templates[category] = [
-                d.name for d in category_dir.iterdir() if d.is_dir()
-            ]
+
+    # 1. Local templates
+    templates_dir = get_templates_dir()
+    if templates_dir.exists():
+        for category_dir in templates_dir.iterdir():
+            if category_dir.is_dir() and not category_dir.name.startswith('.'):
+                category = category_dir.name
+                if category not in templates:
+                    templates[category] = []
+                for d in category_dir.iterdir():
+                    if d.is_dir() and not d.name.startswith('.'):
+                        templates[category].append({"name": d.name, "source": "local"})
+
+    # 2. Public templates
+    public_repo_url = config.get("public_repo_url")
+    if public_repo_url:
+        try:
+            response = requests.get(public_repo_url, timeout=10)
+            response.raise_for_status()
+            public_templates = response.json().get("templates", [])
+            for t in public_templates:
+                category = t.get("category", "uncategorized")
+                if category not in templates:
+                    templates[category] = []
+                templates[category].append({
+                    "name": t.get("name"),
+                    "description": t.get("description"),
+                    "url": t.get("url"),
+                    "source": "public"
+                })
+        except requests.exceptions.RequestException as e:
+            print(f"Warning: Could not fetch public templates: {e}")
+
+    # 3. Private templates
+    private_repos = config.get("private_repos", [])
+    for repo in private_repos:
+        category = "private"
+        if category not in templates:
+            templates[category] = []
+        templates[category].append({
+            "name": repo.get("alias"),
+            "url": repo.get("url"),
+            "source": "private"
+        })
 
     return templates
 
@@ -52,9 +121,17 @@ def display_templates(templates):
 
     for category, template_list in sorted(templates.items()):
         print(f"\n{category.upper()}:")
-        for template_name in sorted(template_list):
-            print(f"  {index}. {template_name}")
-            template_map[index] = (category, template_name)
+        for template in sorted(template_list, key=lambda t: t['name']):
+            name = template['name']
+            source = template.get('source', 'local')
+            description = template.get('description', '')
+            
+            display_text = f"  {index}. {name} ({source})"
+            if description:
+                display_text += f" - {description}"
+
+            print(display_text)
+            template_map[index] = (category, name)
             index += 1
 
     print("=" * 50)
@@ -208,6 +285,58 @@ def matches_any_pattern(file_path, patterns):
     return False
 
 
+def get_template_path(category, template_name):
+    """
+    Gets the local path to a template, fetching it from a remote source if necessary.
+    """
+    config = cfg.load_config()
+    all_templates = list_templates()
+
+    template_info = None
+    if category in all_templates:
+        for t in all_templates[category]:
+            if t['name'] == template_name:
+                template_info = t
+                break
+
+    if not template_info:
+        return None
+
+    if template_info['source'] == 'local':
+        return get_templates_dir() / category / template_name
+
+    # Handle remote templates
+    url = template_info.get('url')
+    if not url:
+        return None
+
+    # Construct cache path
+    url_parts = url.replace('https://', '').replace('.git', '')
+    cache_path = cfg.CACHE_DIR / url_parts
+    
+    # Clone or pull
+    if cache_path.exists():
+        print(f"Updating template '{template_name}' from {url}...")
+        try:
+            subprocess.run(['git', '-C', str(cache_path), 'pull'], check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: Could not update template: {e.stderr.decode()}")
+    else:
+        print(f"Downloading template '{template_name}' from {url}...")
+        token = config.get('github_token')
+        auth_url = url
+        if template_info['source'] == 'private' and token:
+            auth_url = url.replace('https://', f'https://{token}@')
+
+        try:
+            subprocess.run(['git', 'clone', auth_url, str(cache_path)], check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Could not clone template: {e.stderr.decode()}")
+            return None
+            
+    return cache_path
+
+
 def apply_template_config(target_dir, template_config, variables):
     """Applies template configuration (renames and replacements)."""
     if not template_config:
@@ -264,13 +393,12 @@ def apply_template_config(target_dir, template_config, variables):
 
 def create_project(category, template_name, project_name, package_name=None, output_dir=None, author_name='', author_email='', project_description=''):
     """Creates a new project from a template."""
-    templates_dir = get_templates_dir()
-    template_path = templates_dir / category / template_name
+    template_path = get_template_path(category, template_name)
 
-    if not template_path.exists():
-        print(f"Error: Template not found at {template_path}")
+    if not template_path or not template_path.exists():
+        print(f"Error: Template '{category}/{template_name}' not found.")
         return False
-
+        
     # Load template configuration
     template_config = load_template_config(template_path)
 
@@ -309,7 +437,7 @@ def create_project(category, template_name, project_name, package_name=None, out
 
     # Copy template
     try:
-        shutil.copytree(template_path, target_dir, ignore=shutil.ignore_patterns('template.json'))
+        shutil.copytree(template_path, target_dir, ignore=shutil.ignore_patterns('template.json', '.git'))
     except Exception as e:
         print(f"Error copying template: {e}")
         return False
@@ -387,8 +515,8 @@ def print_banner():
   \ \ \L\ \/\ \L\ \ \ \ \    \_\ \_ /\  __/ \ \ \/ \ \ \L\ \   \_\ \_ /\ \L\.\_   \ \ \_ /\  __/ /\__, `\
    \ \____/\ \____/  \ \_\   /\____\\ \____\ \ \_\  \ \ ,__/   /\____\\ \__/.\_\   \ \__\\ \____\\/\____/
     \/___/  \/___/    \/_/   \/____/ \/____/  \/_/   \ \ \/    \/____/ \/__/\/_/    \/__/ \/____/ \/___/ 
-                                                      \ \_\                                              
-                                                       \/_/                                              
+                                                     \ \_\                                              
+                                                      \/_/                                              
 """
     # Cyan color for the banner, Reset for version
     print(f"\033[96m{banner}\033[0m")
@@ -398,24 +526,7 @@ def print_banner():
 def interactive_mode():
     """Runs the CLI in interactive mode with InquirerPy."""
 
-    # Get all templates organized by category
-    templates_dir = get_templates_dir()
-    if not templates_dir.exists():
-        print(f"Error: Templates directory not found at {templates_dir}")
-        return
-
-    templates_by_category = {}
-    for category_dir in templates_dir.iterdir():
-        if category_dir.is_dir():
-            category = category_dir.name
-            templates_by_category[category] = []
-            for template_dir in category_dir.iterdir():
-                if template_dir.is_dir():
-                    info = get_template_info(template_dir)
-                    templates_by_category[category].append({
-                        'value': template_dir.name,
-                        'name': f"{info['name']}" + (f" - {info['description']}" if info['description'] else "")
-                    })
+    templates_by_category = list_templates()
 
     if not templates_by_category:
         print("No templates found.")
@@ -444,7 +555,7 @@ def interactive_mode():
         {
             'type': 'list',
             'name': 'category',
-            'message': 'Select category (programming language):',
+            'message': 'Select category:',
             'choices': [
                 {'name': category.upper(), 'value': category}
                 for category in sorted(templates_by_category.keys())
@@ -462,7 +573,13 @@ def interactive_mode():
 
     # Now ask for template based on selected category
     selected_category = answers['category']
-    template_choices = templates_by_category[selected_category]
+    template_choices = [
+        {
+            "name": f"{t['name']} ({t.get('source', 'local')})" + (f" - {t['description']}" if t.get('description') else ""),
+            "value": t['name']
+        }
+        for t in templates_by_category[selected_category]
+    ]
 
     template_question = [
         {
@@ -481,6 +598,11 @@ def interactive_mode():
         return
 
     selected_template = template_answer['template']
+    
+    # Find full template info again
+    template_info = next((t for t in templates_by_category[selected_category] if t['name'] == selected_template), None)
+    description = template_info.get('description', '') if template_info else ''
+
 
     # Ask for project description (optional)
     description_question = [
@@ -488,7 +610,7 @@ def interactive_mode():
             'type': 'input',
             'name': 'project_description',
             'message': 'Project description (optional):',
-            'default': f"A {selected_category} project using {selected_template}",
+            'default': description or f"A {selected_category} project using {selected_template}",
         }
     ]
     description_answer = prompt(description_question)
@@ -544,6 +666,20 @@ Examples:
     # List command
     list_parser = subparsers.add_parser('list', help='List all available templates')
 
+    # Config command
+    config_parser = subparsers.add_parser('config', help='Manage configuration')
+    config_subparsers = config_parser.add_subparsers(dest='config_command', help='Configuration commands')
+    config_subparsers.add_parser('set-token', help='Set GitHub Personal Access Token')
+
+    # Repo command
+    repo_parser = subparsers.add_parser('repo', help='Manage private repositories')
+    repo_subparsers = repo_parser.add_subparsers(dest='repo_command', help='Repository commands')
+    add_repo_parser = repo_subparsers.add_parser('add', help='Add a private repository')
+    add_repo_parser.add_argument('url', help='URL of the repository')
+    add_repo_parser.add_argument('--alias', help='Alias for the repository')
+    remove_repo_parser = repo_subparsers.add_parser('remove', help='Remove a private repository')
+    remove_repo_parser.add_argument('alias', help='Alias of the repository to remove')
+
     # Create command
     create_parser = subparsers.add_parser('create', help='Create a new project from a template')
     create_parser.add_argument('category', help='Template category (e.g., python, react)')
@@ -563,6 +699,20 @@ Examples:
         print_banner()
         templates = list_templates()
         display_templates(templates)
+
+    elif args.command == 'config':
+        if args.config_command == 'set-token':
+            set_github_token()
+        else:
+            config_parser.print_help()
+
+    elif args.command == 'repo':
+        if args.repo_command == 'add':
+            add_private_repo(args.url, args.alias)
+        elif args.repo_command == 'remove':
+            remove_private_repo(args.alias)
+        else:
+            repo_parser.print_help()
 
     elif args.command == 'create':
         print_banner()

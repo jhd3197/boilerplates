@@ -97,6 +97,44 @@ boilerplates list
 ```
 
 ---
+## GitHub Integration
+
+Extend the power of the Boilerplate Manager by connecting it to GitHub. You can use a curated list of public boilerplates or add your own private repositories.
+
+### 1. Configure Your GitHub Token
+
+To use private repositories, you need to provide a GitHub Personal Access Token (PAT) with the `repo` scope.
+
+```bash
+boilerplates config set-token
+```
+
+The CLI will prompt you to enter your token, which will be stored securely in the tool's configuration.
+
+### 2. Manage Repositories
+
+#### Public Repositories
+The tool comes pre-configured with a list of public boilerplates. This list is fetched from a central repository, so it can be updated without requiring a CLI update.
+
+#### Private Repositories
+You can add and remove your own private boilerplates.
+
+**Add a repository:**
+```bash
+# Syntax: boilerplates repo add <repo_url> --alias <alias>
+boilerplates repo add https://github.com/my-user/my-react-template.git --alias my-react
+```
+The `alias` is a short name you'll use to refer to the template. If you don't provide one, it will be inferred from the URL.
+
+**Remove a repository:**
+```bash
+# Syntax: boilerplates repo remove <alias>
+boilerplates repo remove my-react
+```
+
+Now, when you run `boilerplates list` or `boilerplates init`, you will see your private templates listed under the "private" category.
+
+---
 
 ## Template Catalog
 

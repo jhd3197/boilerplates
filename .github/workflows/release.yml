@@ -4,9 +4,7 @@ on:
   push:
     branches:
       - main
-      # Added dev branch as per request "potentially work in dev" (triggering the check, but release steps might be skipped or adapted if needed, 
-      # but standard flow usually only releases from main. If user wants to release from dev, they can add it to release_branches in bump step)
-      # For now, keeping main as the primary release branch as per standard practice and the provided example.
+      - dev
 
 permissions:
   contents: write
@@ -31,19 +29,18 @@ jobs:
         uses: mathieudutour/github-tag-action@v6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          release_branches: main
+          release_branches: main,dev
           default_bump: patch
           tag_prefix: 'v'
 
-      # OPTIONAL: keep VERSION only on main (dev never changes it)
-      - name: Update VERSION (main only)
+      - name: Update VERSION file
         run: |
           echo "${{ steps.bump_version.outputs.new_version }}" > VERSION
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION
           git commit -m "🔖 Version v${{ steps.bump_version.outputs.new_version }} [skip ci]" || true
-          git push origin main || true
+          git push origin HEAD:${{ github.ref_name }} || true
 
       - name: Fetch Latest Pull Request Info
         id: fetch_pr
